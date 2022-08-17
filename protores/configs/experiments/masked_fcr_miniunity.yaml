@@ -1,0 +1,17 @@
+base_config: default
+parameters:
+  model.logging.path: "./logs/${model.dataset.name}/masked_fcr"
+  model.logging.name: "Backbone_${model.backbone._target_}-lr_${model.optimizer.lr}"
+  model.dataset.name: "deeppose_paper2021_miniunity"
+  model.dataset.num_workers: 4
+  model.use_ux_effectors: False
+  model.trainer.max_epochs: 15000
+  model.trainer.check_val_every_n_epoch: 10
+  model.pos_effector_probability: 1.0
+  model.rot_effector_probability: 1.0
+  model.lookat_effector_probability: 1.0
+  model.backbone._target_: protores.modules.MaskedFcr.MaskedFcr
+  model.optimizer.lr: 0.0001
+  
+  model.datasets_path: "${model.dataset.path}"
+  model.benchmark: "miniunity"

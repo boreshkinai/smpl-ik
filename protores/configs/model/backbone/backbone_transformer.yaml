@@ -1,0 +1,17 @@
+# @package _group_
+_target_: protores.modules.Transformer.WeightedTransformer
+num_joints: 64
+d_model: 128
+nhead: 8
+num_encoder_layers: 2
+num_decoder_layers: 2
+dim_feedforward: 1024
+dropout: 0.01
+activation: "relu"
+embedding_dim: 32
+embedding_size: 64
+embedding_num: 2
+fcr_num_layers: 3
+fcr_num_blocks: 3
+fcr_width: 1024
+

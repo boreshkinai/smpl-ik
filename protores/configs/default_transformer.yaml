@@ -1,0 +1,7 @@
+defaults:
+  - schema/model: PosingOptionalLookAt
+  - model: model
+  - model/dataset: dataset
+  - model/backbone: backbone_transformer
+  - model/trainer: trainer
+  - model/optimizer: optimizer

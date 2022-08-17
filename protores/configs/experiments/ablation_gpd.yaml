@@ -1,0 +1,15 @@
+base_config: default_single_stage
+parameters:
+  model.logging.path: "./logs/${model.dataset.name}/ablation_gpd"
+  model.logging.name: "SingleStage-seed_${model.seed}-num_blocks_stage_${model.backbone.num_blocks_stage}-fk_loss_scale_${model.fk_loss_scale}" 
+  model.dataset.name: "deeppose_paper2021_minimixamo"
+  model.dataset.num_workers: 4
+  model.use_ux_effectors: False
+  model.trainer.max_epochs: 40000
+  model.trainer.check_val_every_n_epoch: 10
+  model.backbone.num_blocks_stage: 6
+  model.fk_loss_scale: 100.0
+  
+  model.datasets_path: "${model.dataset.path}"
+  model.benchmark: "minimixamo"
+  model.seed: 1

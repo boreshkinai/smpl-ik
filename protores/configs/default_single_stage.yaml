@@ -1,0 +1,7 @@
+defaults:
+  - schema/model: PosingOptionalLookAtSingleStage
+  - model: model
+  - model/dataset: dataset
+  - model/backbone: backbone_single_stage
+  - model/trainer: trainer
+  - model/optimizer: optimizer

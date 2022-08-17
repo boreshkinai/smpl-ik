@@ -1,0 +1,28 @@
+base_config: default_transformer
+parameters:
+  model.logging.path: "./logs/${model.dataset.name}/transformer"
+  model.logging.name: "Transformer-seed-${model.seed}-dmodel_${model.backbone.d_model}-dimfeedforward_${model.backbone.dim_feedforward}-nhead_${model.backbone.nhead}-transformer_layers_${model.backbone.num_encoder_layers}-fk_loss_scale_${model.fk_loss_scale}-fcr_blocks_${model.backbone.fcr_num_blocks}"
+  model.dataset.name: "deeppose_paper2021_minimixamo"
+  model.dataset.num_workers: 4
+  model.use_ux_effectors: False
+  model.trainer.max_epochs: 40000
+  model.trainer.check_val_every_n_epoch: 10
+  model.backbone.d_model: 128
+  model.backbone.nhead: 8
+  model.backbone.num_encoder_layers: 2
+  model.backbone.num_decoder_layers: "${model.backbone.num_encoder_layers}"
+  model.backbone.dim_feedforward: 1024
+  model.backbone.dropout: 0.01
+  model.backbone.activation: "relu"
+  model.backbone.embedding_dim: 32
+  model.backbone.embedding_size: 64
+  model.backbone.embedding_num: 2
+  model.backbone.fcr_num_layers: 3
+  model.backbone.fcr_num_blocks: 6
+  model.backbone.fcr_width: 1024
+  model.fk_loss_scale: 100
+  model.pos_loss_scale: "${model.fk_loss_scale}"
+  
+  model.datasets_path: "${model.dataset.path}"
+  model.benchmark: "minimixamo"
+  model.seed: 1

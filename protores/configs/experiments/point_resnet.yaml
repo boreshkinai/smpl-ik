@@ -1,0 +1,18 @@
+base_config: default
+parameters:
+  model.logging.path: "./logs/${model.dataset.name}/rebuttal/point_resnet"
+  model.logging.name: "seed_${model.seed}-num_blocks_enc_${model.backbone.num_blocks_enc}-num_blocks_dec_${model.backbone.num_blocks_stage1}"
+  model.backbone._target_: protores.collections.posing.modules.PointResNet.PointResNet
+  model.backbone.layer_norm: False
+  model.backbone.num_blocks_enc: [3]
+  model.backbone.num_blocks_stage1: [0]
+  model.backbone.num_blocks_stage2: "${model.backbone.num_blocks_stage1}"
+  model.dataset.name: "deeppose_paper2021_minimixamo"
+  model.dataset.num_workers: 4
+  model.use_ux_effectors: False
+  model.trainer.max_epochs: 40000
+  model.trainer.check_val_every_n_epoch: 10
+  
+  model.datasets_path: "${model.dataset.path}"
+  model.benchmark: "minimixamo"
+  model.seed: [1]

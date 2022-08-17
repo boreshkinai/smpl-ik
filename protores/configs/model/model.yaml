@@ -1,0 +1,21 @@
+# @package _group_
+fk_loss_scale: 100.0
+rot_loss_scale: 1.0
+pos_loss_scale: 100.0
+lookat_loss_scale: 1.0
+loss_scales_learnable: False
+lookat_distance_std: 5.0
+max_effector_weight: 1000.0
+max_effector_noise_scale: 0.1
+use_fk_loss: True
+use_rot_loss: True
+use_pos_loss: True
+use_lookat_loss: True
+use_true_lookat_loss: True
+min_effectors_count: 3
+max_effectors_count: 16
+pos_effector_probability: 1.0
+rot_effector_probability: 1.0
+lookat_effector_probability: 1.0
+add_effector_noise: True
+weighted_losses: True

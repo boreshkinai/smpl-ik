@@ -1,0 +1,10 @@
+# @package _group_
+path: "./datasets"
+name: "deeppose_master_v1_fps60"
+batch_size: 2048
+num_workers: 4
+mirror: True
+rotate: True
+translate: False
+augment_training: True
+augment_validation: False

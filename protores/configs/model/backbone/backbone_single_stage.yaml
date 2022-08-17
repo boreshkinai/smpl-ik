@@ -1,0 +1,13 @@
+# @package _group_
+_target_: protores.modules.WeightedProtoResSingleStage.WeightedProtoResSingleStage
+num_layers_enc: 3
+num_blocks_enc: 3
+layer_width_enc: 1024
+num_layers_stage: 3
+num_blocks_stage: 3
+layer_width_stage: 1024
+dropout: 0.01
+embedding_dim: 32
+embedding_size: 64
+embedding_num: 2
+layer_norm: False

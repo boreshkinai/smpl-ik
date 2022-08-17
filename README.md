@@ -7,7 +7,7 @@
   </p>
 </p>
 
-![Alt Text](./fig/kung_fusupercut.gif)
+![Alt Text](./fig/teaser.png)
 
 ## Create workspace and clone this repository
 

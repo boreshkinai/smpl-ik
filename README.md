@@ -1,8 +1,8 @@
 <p align="center">
-  <h1 align="center">ProtoRes</h1>
+  <h1 align="center">SMPL-IK</h1>
 
   <p align="center">
-    Proto-Residual Network for Pose Authoring via Learned Inverse Kinematics
+    Learned Morphology-Aware Inverse Kinematics for AI Driven Artistic Workflows
     <br>
   </p>
 </p>
@@ -15,19 +15,19 @@
 
 ```cd workspace```
 
-```git clone git@github.com:boreshkinai/protores.git```
+```git clone git@github.com:boreshkinai/smpl-ik.git```
 
 
 ## Setup : Docker
 
 ```
-docker build -f Dockerfile -t protores:$USER .
+docker build -f Dockerfile -t smpl-ik:$USER .
 
-nvidia-docker run -p 18888:8888 -p 16006:6006 -v ~/workspace/protores:/workspace/protores -t -d --shm-size="1g" --name protores_$USER protores:$USER
+nvidia-docker run -p 18888:8888 -p 16006:6006 -v ~/workspace/smpl-ik:/workspace/smpl-ik -t -d --shm-size="1g" --name smpl-ik_$USER smpl-ik:$USER
 ```
 go inside docker container
 ```
-docker exec -i -t protores_$USER  /bin/bash 
+docker exec -i -t smpl-ik_$USER  /bin/bash 
 ```
 launch training session
 ```

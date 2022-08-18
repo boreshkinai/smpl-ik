@@ -6,9 +6,10 @@ import json
 import glob
 import os
 import pandas as pd
+import logging
 
 from torch.utils.data import Dataset
-from protores.data.augmentation.types import DataTypes
+from deeppose.collections.common.data.augmentation.types import DataTypes
 from sklearn.model_selection import ParameterGrid
 
 
@@ -30,7 +31,7 @@ class FlatTypedColumnDataset(Dataset):
         if len(dataframe.index) == 0:
             self.is_valid = False
             return
-        self.data = torch.FloatTensor(dataframe.values).pin_memory()
+        self.data = torch.FloatTensor(dataframe.values)  #.pin_memory()
         self._calculated_features = []
         self._cache(dataframe.columns.values.tolist())
 
@@ -134,14 +135,23 @@ class FlatTypedColumnDataset(Dataset):
             raise Exception("no feature matches " + regex)
         return matches
 
-    def get_feature_indices(self, prefix, substr):
+    def get_feature_indices(self, prefix, substr=None):
         if type(prefix) == str and type(substr) == str:
             return self.selector_index(prefix + "_" + substr + "_")
+        elif type(prefix) == str and substr is None:
+            return self.selector_index(prefix + "_")
         elif type(prefix) == list and type(substr) == list:
             possible_values = ParameterGrid({"prefix": prefix, "substr": substr})
             return list(chain.from_iterable(
                 [self.selector_index(values["prefix"] + "_" + values["substr"] + "_") for values in
                  possible_values]))
+        elif type(prefix) == str and type(substr) == list:
+            possible_values = ParameterGrid({"prefix": [prefix], "substr": substr})
+            return list(chain.from_iterable(
+                [self.selector_index(values["prefix"] + "_" + values["substr"] + "_") for values in
+                 possible_values]))
+        elif type(prefix) == list and substr is None:
+            return [self.selector_index(v + "_") for v in prefix]
         else:
             raise ValueError("Invalid type passed into get_feature_indices, only supports str and list[str]")
 
@@ -213,34 +223,41 @@ class FlatTypedColumnDataset(Dataset):
 class TypedColumnDataset(FlatTypedColumnDataset):
     def __init__(self, input_path_or_split_struct, subset="", drop_duplicates=True):
 
-        if (isinstance(input_path_or_split_struct, dict)):
+        if isinstance(input_path_or_split_struct, dict):
             config_path = input_path_or_split_struct['Settings']
             split_file = input_path_or_split_struct['SplitFile']
-            self.files = input_path_or_split_struct[subset]
+            if isinstance(subset, list):
+                self.files = []
+                for subset_name in subset:
+                    self.files += input_path_or_split_struct[subset_name]
+                subset = "_".join(subset)
+            else:
+                self.files = input_path_or_split_struct[subset]
             feather_cache = os.path.join(os.path.dirname(split_file), subset + "_cache.feather")
         else:
             config_path = os.path.join(input_path_or_split_struct, "dataset_settings.json")
-            if subset is not None and subset != "":
+            if subset is not None and subset is not "":
                 input_path_or_split_struct = os.path.join(input_path_or_split_struct, subset)
 
             self.files = sorted(glob.glob(input_path_or_split_struct + '/**/*.csv', recursive=True))
             feather_cache = os.path.join(input_path_or_split_struct, "cache.feather")
 
-        if (config_path is not None and os.path.isfile(config_path)):
+        if config_path is not None and os.path.isfile(config_path):
             with open(config_path, "r") as f:
                 config = json.load(f)
         else:
+            print("Reading file %s" % self.files[0])
             p = pd.read_csv(self.files[0]).reset_index(drop=True)
             config = self.auto_detect_features(p.columns.values.tolist())
 
-        print("\t Loading ", subset, " DataFrame")
-        df = pd.DataFrame()
-        if os.path.isfile(feather_cache) == True:
+        logging.info("Loading %s data..." % subset)
+        if os.path.isfile(feather_cache):
             df = pd.read_feather(feather_cache)
         else:
             sequence_index = 0
             all_sequences = []
             for f in self.files:
+                print("Reading file %s" % f)
                 sequence = pd.read_csv(f).reset_index(drop=True)
                 sequence["Sequence"] = sequence_index
                 all_sequences.append(sequence)
@@ -253,7 +270,7 @@ class TypedColumnDataset(FlatTypedColumnDataset):
             df = df.astype('float32')
             df.to_feather(feather_cache)
         config["features"]["Sequence"] = {"types": ["Scalar"]}
-        print("\t Loaded ", subset, " DataFrame")
+        logging.info("Loaded %s data" % subset)
 
         super().__init__(df, config)
         self.sequences = pd.DataFrame([[int(k), v.values] for k,v in df.groupby('Sequence').groups.items()], columns=['Sequence','Indices'])
@@ -268,6 +285,11 @@ class TypedColumnSequenceDataset(Dataset):
         self.dataset = TypedColumnDataset(input_path_or_split_struct=input_path_or_split_struct, subset=subset, drop_duplicates=False)
         self.config = self.dataset.config
         self.is_valid = self.dataset.is_valid
+        self.formatted_as_sliding_windows = False
+
+    @classmethod
+    def FromSplit(cls, split):
+        return TypedColumnSequenceDataset(split, subset="Training"), TypedColumnSequenceDataset(split, subset="Validation")
 
     def get_config(self, key):
         return self.dataset.get_config(key)
@@ -299,19 +321,66 @@ class TypedColumnSequenceDataset(Dataset):
     def selector_index(self, regex):
         return self.dataset.selector_index(regex)
 
-    def get_feature_indices(self, prefix, substr):
+    def get_feature_indices(self, prefix, substr=None):
         return self.dataset.get_feature_indices(prefix, substr)
 
     def select_features(self, *argv):
-        return self.dataset.get_feature_indices(*argv);
+        return self.dataset.select_features(*argv)
+
+    def remove_short_sequences(self, min_length):
+        # Filter sequence from lengths. Consider the subsampling factor now.
+        df = self.dataset.sequences
+        init_length = len(df)
+        filter_idxs = [len(i) >= min_length for i in df.Indices]
+        df = df[filter_idxs]
+        final_length = len(df)
+        if final_length < init_length:
+            logging.info("Filtered out {} sequences that were too short.".format(init_length - final_length))
+        self.dataset.sequences = df.reset_index(drop=True)
+
+    def format_as_sliding_windows(self, width, offset):
+        # Modify only the source dataset's .sequences attribute so that indices mimic sliding windows.
+        old_sequence_indices = self.dataset.sequences.values
+        new_sequence_indices = {}
+        skipped_sequences_count = 0
+        seq_idx = 0
+
+        for old_seq_idx in range(old_sequence_indices.shape[0]):
+            start_idx = 0
+            nframes = len(old_sequence_indices[old_seq_idx][1])
+            if nframes >= width:  # Room for at least one sliding windows
+                while start_idx <= (nframes - width):
+                    new_sequence_indices[seq_idx] = old_sequence_indices[old_seq_idx][1][start_idx:start_idx + width]
+                    start_idx = start_idx + offset
+                    seq_idx = seq_idx + 1
+            else:
+                skipped_sequences_count = skipped_sequences_count + 1
+
+        if skipped_sequences_count > 0:
+            logging.info("While formatting as sliding windows, {} sequences were too short and therefore skipped.".format(skipped_sequences_count))
+
+        assert 0 in new_sequence_indices.keys(), "It seems all sequences were too short to format into sliding windows of size {}".format(width)
+
+        # Replace sequence indices
+        self.dataset.sequences = pd.DataFrame([[k, v] for k, v in new_sequence_indices.items()], columns=['Sequence', 'Indices'])
+        self.formatted_as_sliding_windows = True
 
     def __getitem__(self, index):
-        indices = self.dataset.sequences["Indices"][index]
+        if isinstance(index, list):
+            # This batched version works for fixed-size sequences only
+            n_frames_per_sequence = len(self.dataset.sequences["Indices"][0])
+
+            indices = []
+            for i in index:
+                frame_indices = list(self.dataset.sequences["Indices"][i])
+                assert len(frame_indices) == n_frames_per_sequence, "Variable length sequences for not supported here."
+                indices = indices + frame_indices
+        else:
+            indices = self.dataset.sequences["Indices"][index]
+
         sequence_data = self.dataset.__getitem__(indices)
+
         return sequence_data
 
     def __len__(self):
         return len(self.dataset.sequences)
-
-
-

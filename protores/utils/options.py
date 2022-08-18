@@ -60,7 +60,6 @@ class TrainerOptions:
     amp_backend: str = 'native'
     amp_level: str = 'O2'
     distributed_backend: Optional[str] = None
-    automatic_optimization: bool = True
 
 
 @dataclass

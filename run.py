@@ -65,7 +65,7 @@ def run(cfg: BaseOptions):
 
     # setup callbacks
     callbacks = []
-    callbacks.append(ModelCheckpoint(dirpath=tb_logger.log_dir + '/checkpoints', save_top_k=None, monitor=None, mode="min"))
+    callbacks.append(ModelCheckpoint(dirpath=tb_logger.log_dir + '/checkpoints', save_top_k=1, monitor=None, mode="min"))
     if cfg.logging.export_period > 0:
         callbacks.append(ModelExport(dirpath=tb_logger.log_dir + '/exports', filename=cfg.logging.export_name, period=cfg.logging.export_period))
 

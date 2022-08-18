@@ -25,17 +25,17 @@ class WeightedRelationNetSmpl(t.nn.Module):
 
         self.encoder = WeightedProtoEncoder(size_in=size_in + embedding_dim * embedding_num + shape_size,  size_out=layer_width_enc,
                                             num_blocks=num_blocks_enc, num_layers=num_layers_enc,
-                                            layer_width=layer_width_enc, dropout=dropout, attention=False, eps=eps)
+                                            layer_width=layer_width_enc, dropout=dropout, eps=eps)
 
         self.decoder_stage1 = ProtoDecoder(size_in=layer_width_enc + shape_size, size_out=size_out_stage1,
                                            num_blocks=num_blocks_stage1, num_layers=num_layers_stage1,
                                            layer_width=layer_width_stage1, dropout=dropout, layer_norm=layer_norm,
-                                           eps=eps, attention=False)
+                                           eps=eps)
 
         self.decoder_stage2 = ProtoDecoder(size_in=size_out_stage1 + layer_width_enc + shape_size, size_out=size_out,
                                            num_blocks=num_blocks_stage2, num_layers=num_layers_stage2,
                                            layer_width=layer_width_stage2, dropout=dropout, layer_norm=layer_norm,
-                                           eps=eps, attention=False)
+                                           eps=eps)
 
     def encode(self, x: t.Tensor, weights: t.Tensor, shapes: t.Tensor, *args) -> t.Tensor:
         """

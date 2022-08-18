@@ -25,6 +25,8 @@ RUN apt-get install -y curl grep sed dpkg && \
 COPY ./requirements.txt ./requirements.txt
 RUN pip install -r ./requirements.txt -f https://download.pytorch.org/whl/torch_stable.html
 
+RUN pip install markupsafe==2.0.1
+
 
 # ============
 # SECOND STAGE

@@ -1,8 +1,13 @@
+import copy
 import json
-import numpy as np
-import torch
+from typing import List
+import math
 
-from protores.geometry.rotations import get_4x4_rotation_matrix_from_3x3_rotation_matrix
+from protores.geometry.forward_kinematics import forward_kinematics, \
+    extract_translation_rotation, forward_kinematics_quats
+from protores.geometry.inverse_kinematics import inverse_kinematics, inverse_kinematics_quats, \
+    inverse_kinematics_rotations_only
+from protores.geometry.rotations import *
 
 
 class Skeleton:
@@ -15,7 +20,105 @@ class Skeleton:
         else:
             skeleton_data = file_or_skeleton
 
+        # because of the way we export joints, root joints are usually missing
+        # TODO: fix that on the Unity side, this is ugly
+        fixed_skeleton_data = self._add_missing_joints(skeleton_data)
+
+        # convert flat segment list into a full hierarchy
+        self.full_hierarchy = self._build_hierarchy(fixed_skeleton_data)
+
+        # update caches
+        self._rebuild_lookup_data()
+
+    def _build_hierarchy(self, skeleton_data):
+        root_joints = []
+        mapping = {}
+
+        for joint in skeleton_data["joints"]:
+            parentName = joint.get("proximal", "")
+            jointName = joint.get("distal")
+            jointIndex = joint.get("index")
+            jointOffset = joint.get("localOffset", {"x": 0.0, "y": 0.0, "z": 0.0})
+            pairedJointName = joint.get("pairedBone", "")
+
+            assert jointName not in mapping, "Joint was already introduced in the hierarchy"
+
+            # create dictionary for new joint
+            mapping[jointName] = {
+                "index": jointIndex,
+                "offset": jointOffset,
+                "symmetry": pairedJointName,
+                "children": {}
+            }
+
+            if parentName == "":
+                root_joints.append(jointName)
+            else:
+                assert parentName in mapping, "Parent joint not found"
+                mapping[parentName]["children"][jointName] = mapping[jointName]
+
+        assert len(root_joints) == 1, "Skeleton must have a single root"
+
+        root_name = root_joints[0]
+        return {root_name: mapping[root_name]}
+
+    # removes a set of joints from the skeleton
+    # this will also remove all their children
+    # this will also create new bone indexes to ensure they are contiguous
+    def remove_joints(self, joint_names: List[str]):
+        self._remove_joints_recursive(self.full_hierarchy, joint_names)
+        self._cleanup_pairing()
+        self._generate_bone_indexes()
+        self._rebuild_lookup_data()
+
+    def _remove_joints_recursive(self, bone_dict, joint_names):
+        for joint in joint_names:
+            bone_dict.pop(joint, None)
+        for joint in bone_dict:
+            self._remove_joints_recursive(bone_dict[joint]["children"], joint_names)
+
+    def _get_all_joint_names(self, bone_dict, all_joint_names):
+        for joint in bone_dict:
+            all_joint_names.append(joint)
+            self._get_all_joint_names(bone_dict[joint]["children"], all_joint_names)
+
+    def _cleanup_pairing(self):
+        all_joint_names = []
+        self._get_all_joint_names(self.full_hierarchy, all_joint_names)
+        self._cleanup_pairing_recursive(self.full_hierarchy, all_joint_names)
+
+    def _cleanup_pairing_recursive(self, bone_dict, all_joint_names):
+        for joint in bone_dict:
+            if bone_dict[joint]["symmetry"] not in all_joint_names:
+                bone_dict[joint]["symmetry"] = ""
+            self._cleanup_pairing_recursive(bone_dict[joint]["children"], all_joint_names)
+
+    def _generate_bone_indexes(self):
+        bone_index = 0
+        self._generate_bone_indexes_recursive(self.full_hierarchy, bone_index)
+
+    def _generate_bone_indexes_recursive(self, bone_dict, bone_index):
+        for joint in bone_dict:
+            bone_dict[joint]["index"] = bone_index
+            bone_index += 1
+            bone_index = self._generate_bone_indexes_recursive(bone_dict[joint]["children"], bone_index)
+        return bone_index
+
+    def is_child_of(self, child_name: str, parent_name: str):
+        direct_parent = self.bone_parent.get(child_name, "")
+        if direct_parent != "" and direct_parent is not None:
+            if direct_parent == parent_name:
+                return True
+            else:
+                return self.is_child_of(direct_parent, parent_name)
+
+        return False
+
+    def _rebuild_lookup_data(self):
+        self.joints = []
         self.all_joints = []
+        self.inner_joints = []
+        self.end_joints = []
         self.bone_indexes = {}  # dictionary bone's name => bone's index
         self.bone_parent = {}  # dictionary bone's name => parent's name
         self.bone_children = {}  # dictionary bone's name => children's name list
@@ -27,23 +130,27 @@ class Skeleton:
         self.level_bones_parents = {}
         self.max_level = 0
 
-        skeleton_data["joints"].insert(0, {
-            "distal": "Hips",
-            "index": 0,
-            "proximal": "",
-            "offset": {"x": 0.0, "y": 0.0, "z": 0.0},
-            "localOffset": {"x": 0.0, "y": 0.0, "z": 0.0}
-        })
+        self._rebuild_lookup_data_recursive(self.full_hierarchy, "")
 
-        # read data and construct arrays
-        for joint in skeleton_data["joints"]:
-            bone_name = joint["distal"]
+        self.nb_joints = len(self.bone_indexes)
+
+        # Keeps an index map that when applied will swap left and right
+        self.bone_pair_indices = np.array([i if i not in self.bone_pairing else self.bone_indexes[self.bone_pairing[i]]
+                                           for i in range(0, self.nb_joints)])
+
+        self._compute_adjacency_matrix()
+        self._compute_local_offsets()
+        self._set_inner_outer_joints()
+
+    def _rebuild_lookup_data_recursive(self, bone_dict, parent_bone):
+        for bone_name in bone_dict:
+            joint = bone_dict[bone_name]
             bone_idx = joint["index"]
-            parent_bone = joint.get("proximal", "")
-            localOffset = joint.get("localOffset", {})
-            paired_bone = joint.get("pairedBone", "")
+            local_offset = joint["offset"]
+            paired_bone = joint["symmetry"]
 
-            self.bone_offsets[bone_name] = np.array([localOffset.get("x", 0.0), localOffset.get("y", 0.0), localOffset.get("z", 0.0)])
+            self.bone_offsets[bone_name] = np.array(
+                [local_offset.get("x", 0.0), local_offset.get("y", 0.0), local_offset.get("z", 0.0)])
 
             if paired_bone != "":
                 self.bone_pairing[bone_idx] = paired_bone
@@ -54,7 +161,7 @@ class Skeleton:
             # self.bone_offsets[bone_name] = np.matmul(self.rotation, self.bone_offsets[bone_name])
             self.bone_indexes[bone_name] = bone_idx
             self.index_bones[bone_idx] = bone_name
-            if parent_bone != '':
+            if parent_bone != "":
                 self.bone_parent[bone_name] = parent_bone
                 if self.bone_children.get(parent_bone, None) is None:
                     self.bone_children[parent_bone] = []
@@ -64,7 +171,8 @@ class Skeleton:
 
             level = 0
             if bone_idx not in self.bone_levels:
-                self.bone_levels[bone_idx] = self.bone_levels[self.bone_indexes[parent_bone]] + 1  # One bone deeper than parent
+                self.bone_levels[bone_idx] = self.bone_levels[
+                                                 self.bone_indexes[parent_bone]] + 1  # One bone deeper than parent
                 level = self.bone_levels[bone_idx]
                 self.max_level = max(level, self.max_level)
 
@@ -73,22 +181,45 @@ class Skeleton:
                 self.level_bones_parents[level] = []
 
             self.level_bones[level].append(bone_idx)
-            if parent_bone == '':
+            if parent_bone == "":
                 self.level_bones_parents[level].append(bone_idx)
             else:
                 self.level_bones_parents[level].append(self.bone_indexes[parent_bone])
 
-        self.nb_joints = len(self.bone_indexes)
+            self._rebuild_lookup_data_recursive(joint["children"], bone_name)
 
-        # compute adjacency matrix
-        self._compute_adjacency_matrix()
+    def _add_missing_joints(self, skeleton_data):
+        # we make a deep-copy to not modify the original data
+        fixed_skeleton_data = copy.deepcopy(skeleton_data)
 
-        # Keeps an index map that when applied will swap left and right
-        self.bone_pair_indices = np.array([i if i not in self.bone_pairing else self.bone_indexes[self.bone_pairing[i]]
-                                  for i in range(0, self.nb_joints)])
+        # list all proximal and distal joints
+        all_distal_joints = []
+        all_proximal_joints = []
+        for joint in fixed_skeleton_data["joints"]:
+            bone_name = joint["distal"]
+            all_distal_joints.append(bone_name)
+            parent_bone = joint.get("proximal", None)
+            if parent_bone is not None and parent_bone != "" and parent_bone not in all_proximal_joints:
+                all_proximal_joints.append(parent_bone)
 
-        # compute local offsets array
-        self._compute_local_offsets()
+        # add missing proximal joints (roots)
+        added_joints = 0
+        for joint in all_proximal_joints:
+            if joint not in all_distal_joints:
+                all_distal_joints.append(joint)
+                fixed_skeleton_data["joints"].insert(0, {
+                    "distal": joint,
+                    "index": 0,  # default index for root is 0
+                    "proximal": "",
+                    "offset": {"x": 0.0, "y": 0.0, "z": 0.0},
+                    "localOffset": {"x": 0.0, "y": 0.0, "z": 0.0}
+                })
+                added_joints += 1
+
+        # we only support one root currently
+        assert added_joints <= 1, "Multiple root joints is not supported"
+
+        return fixed_skeleton_data
 
     def _compute_adjacency_matrix(self):
         self.adjacency_matrix = np.zeros((self.nb_joints, self.nb_joints))
@@ -108,27 +239,41 @@ class Skeleton:
 
         # convert to pytorch
         self.joint_offsets = torch.autograd.Variable(torch.FloatTensor(self.joint_offsets))
-        self.cached_offsets = None
 
-    # convert offsets into transform matrices
-    # offsets: offset for each joint in the batch (B, J, 3)
-    # out: transformation matrix of each joint in the batch (B, J, 4, 4)
-    @staticmethod
-    def get_offset_matrices(offsets):
-        batch_size = offsets.shape[0]
-        joints_nbr = offsets.shape[1]
+    def _set_inner_outer_joints(self):
+        self.inner_joints = [joint for joint in self.all_joints if
+                             joint in self.bone_children and len(self.bone_children[joint]) > 0]
+        self.end_joints = [joint for joint in self.all_joints if joint not in self.inner_joints]
 
-        zeros = torch.autograd.Variable(torch.zeros(batch_size, joints_nbr, 1).type_as(offsets))
-        ones = torch.autograd.Variable(torch.ones(batch_size, joints_nbr, 1).type_as(offsets))
+    def check_indexes(self):
+        for bone in self.bone_parent:
+            parent = self.bone_parent[bone]
+            if parent is not None:
+                assert (self.bone_indexes[parent] < self.bone_indexes[bone])
 
-        dim0 = torch.cat((ones, zeros, zeros, offsets[:, :, 0].view(batch_size, joints_nbr, 1)), 2)
-        dim1 = torch.cat((zeros, ones, zeros, offsets[:, :, 1].view(batch_size, joints_nbr, 1)), 2)
-        dim2 = torch.cat((zeros, zeros, ones, offsets[:, :, 2].view(batch_size, joints_nbr, 1)), 2)
-        dim3 = torch.cat((zeros, zeros, zeros, ones), 2)
+    # Computes the accumulated bone chain length of each bone of the skeleton for a given pose
+    # bones_positions: vector of num_joints * 3 world positions
+    def compute_bone_chain_length(self, bones_positions):
+        n_bones = len(self.bone_indexes)
 
-        matrices = torch.cat((dim0, dim1, dim2, dim3), 2).view(batch_size, joints_nbr, 4, 4)
+        bones_length = {}
+        for i in range(n_bones):
+            bone = self.index_bones[i]
+            bones_length[bone] = 0.0
 
-        return matrices
+        for i in range(n_bones):
+            bone_idx = n_bones - i - 1
+            bone = self.index_bones[bone_idx]
+            parent_bone = self.bone_parent.get(bone)
+            if parent_bone is not None:
+                parent_idx = self.bone_indexes[parent_bone]
+                dx = bones_positions[bone_idx * 3] - bones_positions[parent_idx * 3]
+                dy = bones_positions[bone_idx * 3 + 1] - bones_positions[parent_idx * 3 + 1]
+                dz = bones_positions[bone_idx * 3 + 2] - bones_positions[parent_idx * 3 + 2]
+                length = math.sqrt(dx * dx + dy * dy + dz * dz)
+                bones_length[parent_bone] += bones_length[bone] + length
+
+        return bones_length
 
     # performs differentiable forward kinematics
     # joints_local_rotations: local rotation matrices of each joint in the batch (B, J, 3, 3)
@@ -138,44 +283,98 @@ class Skeleton:
         batch_size = joints_local_rotations.shape[0]
         joints_nbr = self.joint_offsets.shape[0]
 
-        # assert joints_nbr == len(self.joint_offsets), "To use forward kinematics, " \
-        #                                               "please ensure that all joints are being predicted. " \
-        #                                               "{} != {}".format(joints_nbr, len(self.joint_offsets))
-
-        # convert 3x3 rotation matrices to 4x4 rotation matrices
-        # so that we can store local offset to perform both translation and rotation at once
-        rotation_matrices = get_4x4_rotation_matrix_from_3x3_rotation_matrix(joints_local_rotations.view(-1, 3, 3))
-
-        # get the joints local offsets for the whole batch
-        if self.cached_offsets is None or self.cached_offsets.shape[0] != batch_size:
-            self.cached_offsets = self.joint_offsets.type_as(joints_local_rotations).view(1, joints_nbr, 3).repeat(batch_size, 1, 1)  # (batch, joints, 3)
-            self.translation_matrices = self.get_offset_matrices(self.cached_offsets).view(-1, 4, 4).type_as(joints_local_rotations)
-
-        # compute local transformation matrix for each joints
-        local_transforms = torch.matmul(self.translation_matrices, rotation_matrices).view(batch_size, joints_nbr, 4, 4)
-
-        # build world transformation matrices
-        # start with hips (must be index 0)
-        world_transforms = torch.zeros_like(local_transforms)  # Initialize a matrix of zeros we will fill in
-        world_transforms[:, 0] = local_transforms[:, 0, :, :]
-
-        # then process all children joints
-        for level in range(1, self.max_level + 1):
-            parent_bone_indices = self.level_bones_parents[level]
-            local_bone_indices = self.level_bones[level]
-            parent_level_transforms = world_transforms[:, parent_bone_indices]
-            local_level_transforms = local_transforms[:, local_bone_indices]
-            global_matrix = torch.matmul(parent_level_transforms, local_level_transforms)
-            world_transforms[:, local_bone_indices] = global_matrix
+        offsets = self.joint_offsets.type_as(joints_local_rotations).view(1, joints_nbr, 3).repeat(batch_size, 1,
+                                                                                                   1)  # (batch, joints, 3)
+        world_transforms = forward_kinematics(joints_local_rotations, offsets, level_joints=self.level_bones,
+                                              level_joint_parents=self.level_bones_parents)
 
         # extract global position from transform
-        joint_positions = world_transforms[:, :, 0:3, 3].contiguous()  # (batch, joints, 3)
-        joint_rotations = world_transforms[:, :, 0:3, 0:3].contiguous()
+        joint_positions, joint_rotations = extract_translation_rotation(world_transforms.view(-1, 4, 4))
+        joint_positions = joint_positions.view(batch_size, joints_nbr, 3).contiguous()
+        joint_rotations = joint_rotations.view(batch_size, joints_nbr, 3, 3).contiguous()
 
         # apply hips translation
         if true_hip_offset is not None:
             joint_positions += true_hip_offset.unsqueeze(1).expand(batch_size, joints_nbr, 3)
 
         return joint_positions, joint_rotations
+
+    # performs differentiable forward kinematics on local quaternions
+    # joints_local_rotations: local rotation matrices of each joint in the batch (B, J, 4)
+    # out: (world positions of each joint in the batch (B, J, 3),  world quaternions of each joint in the batch (B, J, 4))
+    # note: for now only works with only one parent bone at index 0 (hips)
+    def forward_quats(self, joints_local_rotations, true_hip_offset=None):
+        batch_size = joints_local_rotations.shape[0]
+        joints_nbr = self.joint_offsets.shape[0]
+
+        offsets = self.joint_offsets.type_as(joints_local_rotations).view(1, joints_nbr, 3).repeat(batch_size, 1,
+                                                                                                   1)  # (batch, joints, 3)
+
+        global_positions, global_quats = forward_kinematics_quats(joints_local_rotations, offsets,
+                                                                  self.level_bones, self.level_bones_parents)
+
+        if true_hip_offset is not None:
+            global_positions += true_hip_offset.unsqueeze(1).expand(batch_size, joints_nbr, 3)
+
+        return global_positions, global_quats
+
+    # performs differentiable inverse kinematics
+    # joints_local_rotations: local rotation matrices of each joint in the batch (B, J, 3, 3)
+    # out: world positions of each joint in the batch (B, J, 3)
+    # note: for now only works with only one parent bone at index 0 (hips)
+    def invert(self, joints_global_rotations: torch.Tensor, joints_global_positions: torch.Tensor,
+               true_hip_offset=None):
+        batch_size = joints_global_rotations.shape[0]
+        joints_nbr = self.joint_offsets.shape[0]
+
+        if true_hip_offset is not None:
+            joints_global_positions = joints_global_positions - true_hip_offset[..., None, :].expand_as(
+                joints_global_positions)
+
+        local_transforms = inverse_kinematics(joints_global_rotations,
+                                              joints_global_positions,
+                                              level_joints=self.level_bones,
+                                              level_joint_parents=self.level_bones_parents)
+
+        # extract global position from transform
+        joint_local_positions, joint_local_rotations = extract_translation_rotation(local_transforms.view(-1, 4, 4))
+        joint_local_positions = joint_local_positions.view(batch_size, joints_nbr, 3).contiguous()
+        joint_local_rotations = joint_local_rotations.view(batch_size, joints_nbr, 3, 3).contiguous()
+
+        return joint_local_positions, joint_local_rotations
+
+    # performs differentiable inverse kinematics on rotations only
+    # joints_local_rotations: local rotation matrices of each joint in the batch (B, J, 3, 3)
+    # out: local rotations of each joint in the batch (B, J, 3, 3)
+    # note: for now only works with only one parent bone at index 0 (hips)
+    def invert_rotations(self, joints_global_rotations: torch.Tensor):
+        batch_size = joints_global_rotations.shape[0]
+        joints_nbr = self.joint_offsets.shape[0]
+
+        joint_local_rotations = inverse_kinematics_rotations_only(joints_global_rotations,
+                                                                  level_joints=self.level_bones,
+                                                                  level_joint_parents=self.level_bones_parents)
+        joint_local_rotations = joint_local_rotations.view(batch_size, joints_nbr, 3, 3).contiguous()
+
+        return joint_local_rotations
+
+    # performs differentiable inverse kinematics on quaternions
+    # joints_local_rotations: localquaternions of each joint in the batch (..., J, 4)
+    # out: world positions of each joint in the batch (..., J, 3)
+    # note: for now only works with only one parent bone at index 0 (hips)
+    def invert_quats(self, joints_global_rotations: torch.Tensor, joints_global_positions: torch.Tensor,
+                     true_hip_offset=None):
+        if true_hip_offset is not None:
+            joints_global_positions = joints_global_positions - true_hip_offset[..., None, :].expand_as(
+                joints_global_positions)
+
+        joint_local_positions, joint_local_quats = inverse_kinematics_quats(joints_global_rotations,
+                                                                            joints_global_positions,
+                                                                            level_joints=self.level_bones,
+                                                                            level_joint_parents=self.level_bones_parents)
+
+        return joint_local_positions, joint_local_quats
+
+
 
 

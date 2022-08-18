@@ -1,6 +1,9 @@
 # IDs of each effector type
 from dataclasses import dataclass, field
 from typing import Any, Union, List, Dict
+import os
+import json
+import errno
 
 import torch
 import numpy as np
@@ -23,6 +26,7 @@ from protores.geometry.forward_kinematics import extract_translation_rotation
 from protores.utils.model_factory import ModelFactory
 from protores.utils.options import BaseOptions
 from protores.data.smpl_module import SmplDataModuleOptions
+from protores.utils.onnx_export import export_named_model_to_onnx
 
 from protores.smpl.smpl_fk import SmplFK
 from protores.smpl.smpl_info import SMPL_JOINT_NAMES
@@ -899,6 +903,18 @@ class SmplModel(pl.LightningModule):
 
         return metadata
 
-    def export(self, filepath, **kwargs):
-        super().export(filepath, opset_version=10, **kwargs)
+    def export(self, filepath: str, **kwargs):
+        dirpath = os.path.dirname(filepath)
+        if not os.path.exists(dirpath):
+            try:
+                os.makedirs(dirpath)
+            except OSError as exc:  # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
+
+        dummy_input = self.get_dummy_input()
+        dynamic_axes = self.get_dynamic_axes()
+        metadata = self.get_metadata()
+        metadata_json = {"json": json.dumps(metadata)}
+        export_named_model_to_onnx(self, dummy_input, filepath, metadata=metadata_json, dynamic_axes=dynamic_axes, verbose=True, **kwargs)
 

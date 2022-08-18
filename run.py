@@ -8,7 +8,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 from hydra.utils import instantiate
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from omegaconf import OmegaConf
 
 from protores.utils.onnx_export import ModelExport
@@ -57,17 +57,24 @@ def run(cfg: BaseOptions):
     model = ModelFactory.instantiate(cfg, data_components=dm.get_data_specific_components())
 
     # setup logging
+    metrics = model.get_metrics()
     tb_logger = TensorBoardLoggerWithMetrics(save_dir=cfg.logging.path,
                                              name=cfg.logging.name,
-                                             version=cfg.logging.version)
+                                             version=cfg.logging.version,
+                                             metrics=metrics)
     print("Logging saved to: " + tb_logger.log_dir)
     all_loggers = [tb_logger]
 
     # setup callbacks
     callbacks = []
-    callbacks.append(ModelCheckpoint(dirpath=tb_logger.log_dir + '/checkpoints', save_top_k=1, monitor=None, mode="min"))
+    callbacks.append(ModelCheckpoint(dirpath=tb_logger.log_dir + '/checkpoints', save_last=cfg.logging.checkpoint.last,
+                                     save_top_k=cfg.logging.checkpoint.top_k, monitor=cfg.logging.checkpoint.monitor,
+                                     mode=cfg.logging.checkpoint.mode,
+                                     every_n_epochs=cfg.logging.checkpoint.every_n_epochs))
     if cfg.logging.export_period > 0:
-        callbacks.append(ModelExport(dirpath=tb_logger.log_dir + '/exports', filename=cfg.logging.export_name, period=cfg.logging.export_period))
+        callbacks.append(ModelExport(dirpath=tb_logger.log_dir + '/exports', filename=cfg.logging.export_name,
+                                     period=cfg.logging.export_period))
+    callbacks.append(LearningRateMonitor(logging_interval='step'))
 
     # Save Git diff for reproducibility
     current_log_path = os.path.normpath(os.getcwd() + "/./" + tb_logger.log_dir)

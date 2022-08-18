@@ -9,7 +9,7 @@ import pandas as pd
 import logging
 
 from torch.utils.data import Dataset
-from deeppose.collections.common.data.augmentation.types import DataTypes
+from protores.data.augmentation.types import DataTypes
 from sklearn.model_selection import ParameterGrid
 
 

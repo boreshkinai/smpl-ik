@@ -38,6 +38,14 @@ def run(cfg: BaseOptions):
         print("!!! CUDA is NOT available !!!")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
+    # Set random seem to guarantee proper working of distributed training
+    # Note: we do it just before instantiating the trainer to guarantee nothing else will break it
+    rnd_seed = cfg.seed
+    random.seed(rnd_seed)
+    np.random.seed(rnd_seed)
+    torch.manual_seed(rnd_seed)
+    print("Random Seed: ", rnd_seed)
+
     # Create data module
     # Note: we need to manually process the data module in order to get a valid skeleton
     # We don't call setup() as this breaks ddp_spawn training for some reason
@@ -46,7 +54,7 @@ def run(cfg: BaseOptions):
     dm.prepare_data()
 
     # create model
-    model = ModelFactory.instantiate(cfg, skeleton=dm.get_skeleton())
+    model = ModelFactory.instantiate(cfg, data_components=dm.get_data_specific_components())
 
     # setup logging
     tb_logger = TensorBoardLoggerWithMetrics(save_dir=cfg.logging.path,
@@ -61,14 +69,6 @@ def run(cfg: BaseOptions):
     if cfg.logging.export_period > 0:
         callbacks.append(ModelExport(dirpath=tb_logger.log_dir + '/exports', filename=cfg.logging.export_name, period=cfg.logging.export_period))
 
-    # Set random seem to guarantee proper working of distributed training
-    # Note: we do it just before instantiating the trainer to guarantee nothing else will break it
-    rnd_seed = cfg.seed
-    random.seed(rnd_seed)
-    np.random.seed(rnd_seed)
-    torch.manual_seed(rnd_seed)
-    print("Random Seed: ", rnd_seed)
-    
     # Save Git diff for reproducibility
     current_log_path = os.path.normpath(os.getcwd() + "/./" + tb_logger.log_dir)
     logging.info("Logging saved to: %s" % current_log_path)

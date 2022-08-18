@@ -1,2 +1,1 @@
-from .optional_lookat_model import OptionalLookAtModelOptions, OptionalLookAtModel
-from .optional_lookat_model import OptionalLookAtModelSingleStageOptions, OptionalLookAtModelSingleStage
+from .smpl_model import SmplModelOptions, SmplModel

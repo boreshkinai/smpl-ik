@@ -53,7 +53,7 @@ class BaseAugmentation:
             callback = q[2]
             feature_name = q[3]
             slice = flattened_batch.narrow(1, narrow[0], narrow[1] - narrow[0])
-            reshaped = slice.view(view[0], view[1], view[2])
+            reshaped = slice.reshape(view[0], view[1], view[2])
             if feature_name is None:
                 modified = callback(reshaped)
             else:

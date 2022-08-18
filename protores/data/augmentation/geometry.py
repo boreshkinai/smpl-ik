@@ -2,7 +2,7 @@ import torch
 
 from typing import Optional
 
-from protores.geometry.quaternions import multiply_quaternions
+from pytorch3d.transforms import quaternion_multiply
 from .augmentation import BaseAugmentation
 from protores.geometry.rotations import get_random_rotation_matrices_around_random_axis, get_random_rotation_around_axis
 
@@ -38,8 +38,9 @@ class RandomRotation(BaseAugmentation):
     random_rot = None
     random_quat = None
 
-    def __init__(self, axis: Optional[list] = None, features: Optional[list] = None):
+    def __init__(self, axis: Optional[list] = None, features: Optional[list] = None, is_xyzw_quat : bool = True):
         super().__init__(features)
+        self.is_xyzw_quat = is_xyzw_quat
         if axis is not None:
             self.rotation_axis = torch.FloatTensor(axis).view(1, 3)
 
@@ -60,8 +61,12 @@ class RandomRotation(BaseAugmentation):
     def quaternion(self, quat4_tensor: torch.Tensor, feature_name=None) -> torch.Tensor:
         # The hip quaternion will always be the first index of the second axis
         # Rotations are all local wrt to parent so we need to only rotate hip bone
-        # input / output quat order is x, y, z, w
-        quat4_tensor[:, 0] = multiply_quaternions(self.random_quat, quat4_tensor[:, 0, [3, 0, 1, 2]])[:, [1, 2, 3, 0]]
+        if self.is_xyzw_quat:
+            # input / output quat order is x, y, z, w
+            quat4_tensor[:, 0] = quaternion_multiply(self.random_quat, quat4_tensor[:, 0, [3, 0, 1, 2]])[:, [1, 2, 3, 0]]
+        else:
+            # input / output quat order is w, x, y, z
+            quat4_tensor[:, 0] = quaternion_multiply(self.random_quat, quat4_tensor[:, 0])
         return quat4_tensor
 
 

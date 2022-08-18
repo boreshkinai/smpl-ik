@@ -5,7 +5,6 @@ pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@stable
 chumpy
 gdown
 scipy==1.1.0
-opencv-python==4.1.2.30
 
 pytorch-lightning==1.4.7
 torchmetrics==0.6.0

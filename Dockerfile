@@ -44,5 +44,5 @@ ENTRYPOINT [ "/usr/bin/tini", "--" ]
 
 CMD ["jupyter", "notebook", "--allow-root"]
 
-WORKDIR /workspace/protores
+WORKDIR /workspace/smpl-ik
 

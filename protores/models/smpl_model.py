@@ -1,6 +1,6 @@
 # IDs of each effector type
 from dataclasses import dataclass, field
-from typing import Any, Union, List
+from typing import Any, Union, List, Dict
 
 import torch
 import numpy as np
@@ -541,6 +541,28 @@ class SmplModel(pl.LightningModule):
             "joint_rotations": joint_rotations,
             "root_joint_position": joint_positions[:, self.root_idx, :]
         }
+
+    def on_train_start(self) -> None:
+        super().on_train_start()
+        self.log_ng_metadata()
+
+    def on_train_epoch_start(self) -> None:
+        try:
+            dataset = self.trainer.train_dataloader.dataset
+            dataset.set_epoch(self.current_epoch)
+        except Exception:
+            pass
+        return super().on_train_epoch_start()
+
+    def log_train_losses(self, losses: Dict[str, Any], prefix: str = ""):
+        for k, v in losses.items():
+            if v is not None:
+                self.log("train/" + prefix + k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+
+    def log_validation_losses(self, losses: Dict[str, Any], prefix: str = ""):
+        for k, v in losses.items():
+            if v is not None:
+                self.log("validation/" + prefix + k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
     def training_step(self, batch, batch_idx):
         losses = self.shared_step(batch, step="training")

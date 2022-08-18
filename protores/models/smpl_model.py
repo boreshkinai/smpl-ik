@@ -84,6 +84,8 @@ class SmplModel(pl.LightningModule):
     def __init__(self, data_components: Any, opts: SmplModelOptions):
         super().__init__()
 
+        self.save_hyperparameters(opts)
+
         self.smpl_male = SmplFK(models_path=opts.smpl_models_path, model_name=opts.smpl_male_name)
         self.smpl_female = SmplFK(models_path=opts.smpl_models_path, model_name=opts.smpl_female_name)
         self.smpl_neutral = SmplFK(models_path=opts.smpl_models_path, model_name=opts.smpl_neutral_name)

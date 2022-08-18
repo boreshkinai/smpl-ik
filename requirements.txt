@@ -19,5 +19,4 @@ fvcore
 iopath
 smplx[all]
 vector-quantize-pytorch
-torchmetrics==0.4.0
 roma==1.2.5

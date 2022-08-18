@@ -1,0 +1,16 @@
+base_config: posing_smpl
+parameters:
+  model.logging.path: "./logs/h36m/protores_h36m"
+  model.logging.name: "seed-${model.seed}_num_blocks_stage1-${model.backbone.num_blocks_stage1}"
+  model.seed: 1
+  model.min_effectors_count: 3
+  model.max_effectors_count: 16
+  model.trainer.overfit_batches: 0
+  model.dataset.name: "h36m_smpl_beta_augmentation_1_fmn_v1"
+  model.dataset.rotate: True
+  model.dataset.translate: False
+  model.dataset.augment_training: True
+  model.dataset.augment_validation: False
+  model.backbone.num_blocks_stage1: 3
+  model.backbone.num_blocks_stage2: "${model.backbone.num_blocks_stage1}"
+  model.use_pos_loss: False

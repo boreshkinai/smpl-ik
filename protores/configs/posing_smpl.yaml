@@ -1,0 +1,3 @@
+defaults:
+  - schema/model: PosingSmpl
+  - model: posing_smpl_default

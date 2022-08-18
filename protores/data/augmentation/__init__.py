@@ -12,6 +12,7 @@ from .basic import (
 from .geometry import (
     RandomTranslation,
     RandomRotation,
+    RandomRotationLocal,
     Quaternion_XYZW_to_WXYZ,
 )
 

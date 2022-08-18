@@ -1,9 +1,18 @@
-torch==1.7.1+cu110
-pytorch-lightning==1.0.5
+torch==1.9.0+cu111
+pytorch-lightning==1.4.7
 pandas==1.1.4
-pyarrow==2.0.0
+pyarrow==4.0.0
 scikit-learn==0.23.2
 hydra-core==1.0.4
 GitPython==3.1.11
-plotly==4.13.0
-matplotlib
+plotly==5.6.0
+onnx
+torchvision
+fvcore
+iopath
+pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@stable
+chumpy
+smplx[all]
+vector-quantize-pytorch
+torchmetrics==0.4.0
+roma==1.2.5

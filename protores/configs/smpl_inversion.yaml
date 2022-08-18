@@ -1,0 +1,3 @@
+defaults:
+  - schema/model: SmplInversionKernel
+  - model: smpl_inversion_gaussian

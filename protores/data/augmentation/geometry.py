@@ -63,3 +63,10 @@ class RandomRotation(BaseAugmentation):
         # input / output quat order is x, y, z, w
         quat4_tensor[:, 0] = multiply_quaternions(self.random_quat, quat4_tensor[:, 0, [3, 0, 1, 2]])[:, [1, 2, 3, 0]]
         return quat4_tensor
+
+
+class RandomRotationLocal(RandomRotation):
+    def vector3(self, vector3_tensor: torch.Tensor, feature_name=None) -> torch.Tensor:
+        vector3_tensor_root = vector3_tensor[:, [0]]
+        new_vec3 = torch.matmul(self.random_rot, (vector3_tensor - vector3_tensor_root).transpose(2, 1)).transpose(2, 1)
+        return new_vec3 + vector3_tensor_root

@@ -52,9 +52,14 @@ def download_and_unzip(local_dir, dataset_name, url):
 
 class DatasetLoader():
 	def __init__(self, dataset_path):
+		gcp_bucket_uri = "https://storage.googleapis.com/unity-rd-ml-graphics-deeppose/datasets/"
 		self.known_datasets = {
-			"deeppose_paper2021_minimixamo": "https://storage.googleapis.com/unity-rd-ml-graphics-deeppose/datasets/deeppose_paper2021_minimixamo.zip",
-			"deeppose_paper2021_miniunity": "https://storage.googleapis.com/unity-rd-ml-graphics-deeppose/datasets/deeppose_paper2021_miniunity.zip",
+			"h36m_smpl_v1": gcp_bucket_uri + "h36m_smpl_v1.zip",
+			"h36m_smpl_beta_augmentation_1_fm_v1": gcp_bucket_uri + "h36m_smpl_beta_augmentation_1_fm_v1.zip",
+			"h36m_smpl_beta_augmentation_1_fmn_v1": gcp_bucket_uri + "h36m_smpl_beta_augmentation_1_fmn_v1.zip",
+			"amass_v1": gcp_bucket_uri + "amass_v1.zip",
+			"amass_cache_v1": gcp_bucket_uri + "amass_cache_v1.zip",
+			"amass_gender_augment_cache_v1": gcp_bucket_uri + "amass_gender_augment_cache_v1.zip",
 		}
 		self.dataset_path = dataset_path
 

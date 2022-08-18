@@ -1,0 +1,38 @@
+# @package _group_
+dataset:
+  path: "./datasets"
+  name: "h36m_smpl_v1"
+  batch_size: 2048
+  num_workers: 4
+  rotate: True
+  translate: False
+  augment_training: True
+  augment_validation: False
+fk_loss_scale: 100.0
+rot_loss_scale: 1.0
+pos_loss_scale: 100.0
+lookat_loss_scale: 1.0
+loss_scales_learnable: False
+lookat_distance_std: 5.0
+max_effector_weight: 1000.0
+max_effector_noise_scale: 0.1
+backbone:
+  _target_: deeppose.collections.posing.modules.WeightedRelationNetSmpl.WeightedRelationNetSmpl
+  num_layers_enc: 3
+  num_blocks_enc: 3
+  layer_width_enc: 1024
+  num_layers_stage1: 3
+  num_blocks_stage1: 3
+  layer_width_stage1: 1024
+  num_layers_stage2: 3
+  num_blocks_stage2: 3
+  layer_width_stage2: 1024
+  dropout: 0.01
+  embedding_dim: 32
+  embedding_size: 65  # Note: should be at least equal to number of joints (65 for master_v1)
+  embedding_num: 2
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 0.0002
+logging:
+  export_period: 250

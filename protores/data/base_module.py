@@ -7,6 +7,7 @@ from protores.data.base_dataset import BaseDataset, BatchedDataset
 import hydra
 from dataclasses import dataclass
 
+from protores.data.data_components import DataComponents
 from protores.data.dataset.typed_table import TypedColumnDataset
 from protores.data.augmentation import MirrorSkeleton, RandomRotation, RandomTranslation
 from protores.utils.python import get_full_class_reference
@@ -22,7 +23,8 @@ def _batched_collate(batch):
 class BaseDataModule(pl.LightningDataModule):
     def __init__(self, path: str, name: str, batch_size: int, num_workers: int = 0, mirror: bool = True,
                  rotate: bool = True, translate: bool = True,
-                 augment_training: bool = True, augment_validation: bool = True, train_subsampling: int = 1):
+                 augment_training: bool = True, augment_validation: bool = True, train_subsampling: int = 1,
+                 use_raycast: bool = False):
         super().__init__()
 
         self.path = hydra.utils.to_absolute_path(path)
@@ -36,6 +38,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.augment_training = augment_training
         self.augment_validation = augment_validation
         self.train_subsampling = train_subsampling
+        self.use_raycast = use_raycast
 
     def prepare_data(self):
         # download dataset
@@ -47,7 +50,16 @@ class BaseDataModule(pl.LightningDataModule):
         assert "skeleton" in dataset_settings, "No skeleton data could be found in dataset settings"
         return Skeleton(dataset_settings["skeleton"])
 
+    def get_data_specific_components(self):
+        skeleton = self.get_skeleton()
+        return DataComponents(skeleton)
+
     def setup(self, stage=None):
+        self.initialize_datasets()
+        self.setup_augmentations()
+        self.wrap_datasets()
+
+    def initialize_datasets(self):
         # retrieve train / validation split
         self.split = DatasetLoader(self.path).get_split(self.name)
 
@@ -56,15 +68,14 @@ class BaseDataModule(pl.LightningDataModule):
 
         # load datasets
         training_dataset, validation_dataset = TypedColumnDataset.FromSplit(self.split)
-        self.training_dataset = BaseDataset(source=training_dataset, skeleton=self.skeleton, subsampling=self.train_subsampling)
-        self.validation_dataset = BaseDataset(source=validation_dataset, skeleton=self.skeleton)
+        self.training_dataset = BaseDataset(source=training_dataset, skeleton=self.skeleton, subsampling=self.train_subsampling, use_raycast=self.use_raycast)
+        self.validation_dataset = BaseDataset(source=validation_dataset, skeleton=self.skeleton, use_raycast=self.use_raycast)
 
-        # setup data augmentation
-        # TODO: make this parameters
+    def setup_augmentations(self):
         # Note: this should ideally be done in the init function but mirroring requires the skeleton
         self.transforms = []
         if self.mirror:
-            self.transforms.append(MirrorSkeleton(self.skeleton, features=['BonePositions', 'BoneRotations'])) # TODO: 'RootPosition' 'RootRotation'
+            self.transforms.append(MirrorSkeleton(self.skeleton, features=['BonePositions', 'BoneRotations']))  # TODO: 'RootPosition' 'RootRotation'
         if self.rotate:
             self.transforms.append(RandomRotation(axis=[0, 1, 0], features=['BonePositions', 'BoneRotations', 'RootPosition', 'RootRotation']))
         if self.translate:
@@ -75,6 +86,7 @@ class BaseDataModule(pl.LightningDataModule):
         if self.augment_validation:
             self.validation_dataset.set_transforms(self.transforms)
 
+    def wrap_datasets(self):
         # wrap datasets into their batched version
         # We need to do that as a wrapped dataset as Lightning doesn't support well custom samplers with distributed training
         # As a consequence of that, we skipp collapsing in the data loader
@@ -104,3 +116,4 @@ class BaseDataModuleOptions:
     batch_size: int = 2048
     num_workers: int = 0
     train_subsampling: int = 1
+    use_raycast: bool = False

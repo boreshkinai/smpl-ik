@@ -48,11 +48,12 @@ class BatchedDataset(Dataset):
 
 
 class BaseDataset(Dataset):
-    def __init__(self, source: FlatTypedColumnDataset, skeleton: Skeleton, subsampling: int = 1):
+    def __init__(self, source: FlatTypedColumnDataset, skeleton: Skeleton, use_raycast: bool = False, subsampling: int = 1):
         super().__init__()
 
         self.source = source
         self.skeleton = skeleton
+        self.use_raycast = use_raycast
         self.subsampling = subsampling
 
         # add computed features
@@ -72,27 +73,36 @@ class BaseDataset(Dataset):
         self.character_position_idx_in = self.source.select_features("RootPosition")
         self.character_rotation_idx_in = self.source.select_features("RootRotation")
 
+        if self.use_raycast:
+            self.joint_rays_idx = self.source.get_feature_indices(["Raycast"], self.all_joints)
+
     def set_transforms(self, transforms: List[BaseAugmentation]):
         for transform in transforms:
             self.source.add_transform(transform)
 
-    def __getitem__(self, index):
-        if self.subsampling > 1:
-            if isinstance(index, list):
-                for i in range(len(index)):
-                    index[i] = self.subsampling * index[i]
-            else:
-                index = self.subsampling * index
-
-        data = self.source.__getitem__(index)
-
-        #Note: we convert quaternions from x, y, z, w to w, x, y, z
+    def get_item_from_data(self, data):
+        # Note: we convert quaternions from x, y, z, w to w, x, y, z
         item = {
             "joint_positions": data[:, self.joint_positions_idx].view(-1, self.skeleton.nb_joints, 3),
             "joint_rotations": data[:, self.joint_rotations_idx].view(-1, self.skeleton.nb_joints, 4)[:, :, [3, 0, 1, 2]],
             "root_position": data[:, self.character_position_idx_in].view(-1, 3),
             "root_rotation": data[:, self.character_rotation_idx_in].view(-1, 4)[:, [3, 0, 1, 2]]
         }
+
+        if self.use_raycast:
+            item["ray_distances"] = data[:, self.joint_rays_idx].view(-1, self.skeleton.nb_joints, 1)
+
+        return item
+
+    def __getitem__(self, index):
+        if not isinstance(index, list):
+            index = [index]
+        if self.subsampling > 1:
+            for i in range(len(index)):
+                index[i] = self.subsampling * index[i]
+
+        data = self.source.__getitem__(index)
+        item = self.get_item_from_data(data)
 
         return item
 

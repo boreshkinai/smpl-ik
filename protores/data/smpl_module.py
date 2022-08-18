@@ -65,7 +65,7 @@ class SmplDataModule(pl.LightningDataModule):
         self.transforms = []
         if self.rotate:
             self.transforms.append(
-                RandomRotationLocal(axis=[0, 0, 1],  # put None if plan to use in conjunction with pose estimation
+                RandomRotationLocal(axis=[0, 0, 1],  # None if used in conjunction with pose estimation
                                     features=['BonePositions', 'BoneRotations'],
                                     is_xyzw_quat=False))
         if self.translate:

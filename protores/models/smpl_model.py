@@ -31,27 +31,19 @@ from protores.utils.onnx_export import export_named_model_to_onnx
 from protores.smpl.smpl_fk import SmplFK
 from protores.smpl.smpl_info import SMPL_JOINT_NAMES
 
-
 TYPE_VALUES = {'position': 0, 'rotation': 1, 'lookat': 2}
 POSITION_EFFECTOR_ID = TYPE_VALUES["position"]
 ROTATION_EFFECTOR_ID = TYPE_VALUES["rotation"]
 LOOKAT_EFFECTOR_ID = TYPE_VALUES["lookat"]
 
-
+from protores.models.smpl_posing import SmplPosingTaskOptions, SmplPosingTask
 def compute_weights_from_std(std: torch.Tensor, max_weight: float, std_at_max: float = 1e-3) -> torch.Tensor:
     m = max_weight * std_at_max
     return m / std.clamp(min=std_at_max)
 
 
 @dataclass
-class SmplModelOptions(BaseOptions):
-    dataset: SmplDataModuleOptions = SmplDataModuleOptions()
-    validation_effectors: List[str] = field(
-        default_factory=lambda: ['pelvis', 'neck', 'left_wrist', 'right_wrist', 'left_ankle', 'right_ankle'])
-    smpl_models_path: str = "./tools/smpl/models/"
-    smpl_male_name: str = "basicModel_m_lbs_10_207_0_v1.0.0"
-    smpl_female_name: str = "basicModel_f_lbs_10_207_0_v1.0.0"
-    smpl_neutral_name: str = "basicModel_neutral_lbs_10_207_0_v1.0.0"
+class SmplModelOptions(SmplPosingTaskOptions):
     max_effector_weight: float = 1000.0
     use_fk_loss: bool = True
     use_rot_loss: bool = True
@@ -84,34 +76,9 @@ class SmplModelOptions(BaseOptions):
 
 
 @ModelFactory.register(SmplModelOptions, schema_name="PosingSmpl")
-class SmplModel(pl.LightningModule):
+class SmplModel(SmplPosingTask):
     def __init__(self, data_components: Any, opts: SmplModelOptions):
-        super().__init__()
-
-        self.save_hyperparameters(opts)
-
-        self.smpl_male = SmplFK(models_path=opts.smpl_models_path, model_name=opts.smpl_male_name)
-        self.smpl_female = SmplFK(models_path=opts.smpl_models_path, model_name=opts.smpl_female_name)
-        self.smpl_neutral = SmplFK(models_path=opts.smpl_models_path, model_name=opts.smpl_neutral_name)
-
-        self.all_joint_names = SMPL_JOINT_NAMES[:24]
-        self.nb_joints = len(self.all_joint_names)
-        self.joint_indexes = {}
-        self.index_bones = {}
-        for joint_idx in range(len(self.all_joint_names)):
-            self.joint_indexes[self.all_joint_names[joint_idx]] = joint_idx
-            self.index_bones[joint_idx] = self.all_joint_names[joint_idx]
-
-        self.root_idx = self.get_joint_indices(SMPL_JOINT_NAMES[0])
-
-        self.validation_effector_indices = self.get_joint_indices(self.hparams.validation_effectors)
-        self.validation_multinomial_input = torch.zeros((1, self.nb_joints))
-        self.validation_multinomial_input[:, self.validation_effector_indices] = 1
-
-        self.test_fk_metric = MeanSquaredError(compute_on_step=False)
-        self.test_position_metric = MeanSquaredError(compute_on_step=False)
-        self.test_rotation_metric = RotationMatrixError(compute_on_step=False)
-
+        super().__init__(data_components=data_components, opts=opts)
 
         self.before_create_backbone()
         self.create_backbone()
@@ -176,127 +143,6 @@ class SmplModel(pl.LightningModule):
     def create_backbone(self):
         self.net = instantiate(self.hparams.backbone, size_in=7, size_out=self.nb_joints * 6,
                                size_out_stage1=self.nb_joints * 3, shape_size=10 + 1)  # betas + gender
-
-    def apply_smpl_quat(self, betas, joint_rotations_quat, gender, root_position=None, predict_verts: bool = False):
-        joint_rotations_axis_angle = quaternion_to_axis_angle(joint_rotations_quat)
-        global_orient = joint_rotations_axis_angle[:, [0], :]
-        body_pose = joint_rotations_axis_angle[:, 1:, :]
-        return self.apply_smpl(betas=betas, global_orient=global_orient, body_pose=body_pose, gender=gender,
-                               predict_verts=predict_verts, root_position=root_position)
-
-    def apply_smpl(self, betas, global_orient, body_pose, gender, predict_verts: bool = False, root_position=None):
-        if predict_verts:
-            male_positions, male_rotations, male_vertices = self._apply_smpl(betas, global_orient, body_pose,
-                                                                             self.smpl_male, True)
-            female_positions, female_rotations, female_vertices = self._apply_smpl(betas, global_orient, body_pose,
-                                                                                   self.smpl_female, True)
-            neutral_positions, neutral_rotations, neutral_vertices = self._apply_smpl(betas, global_orient,
-                                                                                      body_pose, self.smpl_neutral,
-                                                                                      True)
-        else:
-            male_positions, male_rotations = self._apply_smpl(betas, global_orient, body_pose, self.smpl_male,
-                                                              False)
-            female_positions, female_rotations = self._apply_smpl(betas, global_orient, body_pose, self.smpl_female,
-                                                                  False)
-            neutral_positions, neutral_rotations = self._apply_smpl(betas, global_orient, body_pose,
-                                                                    self.smpl_neutral, False)
-
-        is_male = gender == 0
-        is_female = gender == 1
-        positions = torch.where(is_male.unsqueeze(1), male_positions,
-                                torch.where(is_female.unsqueeze(1), female_positions, neutral_positions))
-        rotations = torch.where(is_male.unsqueeze(1).unsqueeze(1), male_rotations,
-                                torch.where(is_female.unsqueeze(1).unsqueeze(1), female_rotations,
-                                            neutral_rotations))
-
-        if root_position is not None:
-            #             print(root_position.shape, positions.shape)
-            positions = positions + root_position.unsqueeze(1)
-
-        if predict_verts:
-            vertices = torch.where(is_male.unsqueeze(1), male_vertices,
-                                   torch.where(is_female.unsqueeze(1), female_vertices, neutral_vertices))
-            vertices = vertices + root_position.unsqueeze(1)
-            return positions, rotations, vertices
-        else:
-            return positions, rotations
-
-    def _apply_smpl(self, betas, global_orient, body_pose, smpl_model, predict_verts: bool = False):
-        # TODO: Male VS Female
-        # Note: for some reason, Transl is not used in dataset
-        smpl_out = smpl_model.forward(betas=betas, body_pose=body_pose, global_orient=global_orient, transl=None,
-                                      return_verts=predict_verts)
-        smpl_positions, smpl_rotations = extract_translation_rotation(smpl_out.transforms)
-
-        # keep only our joints
-        smpl_positions = smpl_positions[:, :len(self.all_joint_names), :]
-        smpl_rotations = smpl_rotations[:, :len(self.all_joint_names), :]
-
-        if predict_verts:
-            return smpl_positions, smpl_rotations, smpl_out.vertices
-
-        return smpl_positions, smpl_rotations
-
-    def get_target_data_from_batch(self, batch):
-        return {
-            "joint_positions": batch["joint_positions"],
-            "root_joint_position": batch["joint_positions"][:, self.root_idx, :],
-            "joint_rotations": batch["joint_rotations"]
-        }
-
-    def get_dummy_input(self):
-        num_effectors = 1
-        num_betas = 10
-        input = {
-            "betas": torch.zeros((1, num_betas)),
-            "gender": torch.zeros((1, 1)),
-
-            "position_data": torch.zeros((1, num_effectors, 3)),
-            "position_weight": torch.zeros((1, num_effectors)),
-            "position_tolerance": torch.zeros((1, num_effectors)),
-            "position_id": torch.zeros((1, num_effectors), dtype=torch.int64),
-
-            "rotation_data": torch.zeros((1, num_effectors, 6)),
-            "rotation_weight": torch.zeros((1, num_effectors)),
-            "rotation_tolerance": torch.zeros((1, num_effectors)),
-            "rotation_id": torch.zeros((1, num_effectors), dtype=torch.int64),
-
-            "lookat_data": torch.zeros((1, num_effectors, 6)),
-            "lookat_weight": torch.zeros((1, num_effectors)),
-            "lookat_tolerance": torch.zeros((1, num_effectors)),
-            "lookat_id": torch.zeros((1, num_effectors), dtype=torch.int64)
-        }
-        return input
-
-    def get_dynamic_axes(self):
-        return {
-            'position_data': {1: 'num_pos_effectors'},
-            'position_weight': {1: 'num_pos_effectors'},
-            'position_tolerance': {1: 'num_pos_effectors'},
-            'position_id': {1: 'num_pos_effectors'},
-
-            'rotation_data': {1: 'num_rot_effectors'},
-            'rotation_weight': {1: 'num_rot_effectors'},
-            'rotation_tolerance': {1: 'num_rot_effectors'},
-            'rotation_id': {1: 'num_rot_effectors'},
-
-            'lookat_data': {1: 'num_lookat_effectors'},
-            'lookat_weight': {1: 'num_lookat_effectors'},
-            'lookat_tolerance': {1: 'num_lookat_effectors'},
-            'lookat_id': {1: 'num_lookat_effectors'}
-        }
-
-    def get_dummy_output(self):
-        return {
-            "joint_rotations": torch.randn((1, self.nb_joints, 6)),
-            "root_joint_position": torch.randn((1, 3))
-        }
-
-    def get_joint_indices(self, joint_names: Union[str, List[str]]):
-        if isinstance(joint_names, str):
-            return self.joint_indexes[joint_names]
-        else:
-            return [self.joint_indexes[name] for name in joint_names]
 
     @torch.no_grad()
     def get_data_from_batch(self, batch, fixed_effector_setup: bool = True):
@@ -545,24 +391,6 @@ class SmplModel(pl.LightningModule):
             "joint_rotations": joint_rotations,
             "root_joint_position": joint_positions[:, self.root_idx, :]
         }
-
-    def on_train_epoch_start(self) -> None:
-        try:
-            dataset = self.trainer.train_dataloader.dataset
-            dataset.set_epoch(self.current_epoch)
-        except Exception:
-            pass
-        return super().on_train_epoch_start()
-
-    def log_train_losses(self, losses: Dict[str, Any], prefix: str = ""):
-        for k, v in losses.items():
-            if v is not None:
-                self.log("train/" + prefix + k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-
-    def log_validation_losses(self, losses: Dict[str, Any], prefix: str = ""):
-        for k, v in losses.items():
-            if v is not None:
-                self.log("validation/" + prefix + k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
     def training_step(self, batch, batch_idx):
         losses = self.shared_step(batch, step="training")
@@ -842,31 +670,6 @@ class SmplModel(pl.LightningModule):
             self.test_fixed_mpjpe_metric(predicted_joint_positions_fk, target_joint_positions)
             self.test_fixed_pampjpe_metric(predicted_joint_positions_fk, target_joint_positions)
 
-    def update_test_metrics(self, predicted, target, input):
-        betas = input["betas"]
-        gender = input["gender"]
-
-        target_joint_positions = target["joint_positions"]
-        target_root_joint_position = target["root_joint_position"]
-        target_joint_rotations = target["joint_rotations"]
-
-        predicted_root_joint_position = predicted["root_joint_position"]
-        predicted_joint_rotations = predicted["joint_rotations"]
-
-        # compute rotation matrices
-        target_joint_rotations_mat = quaternion_to_matrix(target_joint_rotations.view(-1, 4)).view(-1, self.nb_joints, 3, 3)
-        predicted_joint_rotations_mat = rotation_6d_to_matrix(predicted_joint_rotations.view(-1, 6)).view(-1, self.nb_joints, 3, 3)
-
-        # forward kinematics
-        predicted_joint_rotations_quat = matrix_to_quaternion(predicted_joint_rotations_mat)
-        predicted_joint_positions, _ = self.apply_smpl_quat(betas=betas,
-                                                            joint_rotations_quat=predicted_joint_rotations_quat,
-                                                            gender=gender)
-
-        self.test_fk_metric(predicted_joint_positions, target_joint_positions)
-        self.test_position_metric(predicted_root_joint_position, target_root_joint_position)
-        self.test_rotation_metric(predicted_joint_rotations_mat, target_joint_rotations_mat)
-
     def configure_optimizers(self):
         return instantiate(self.hparams.optimizer, params=self.parameters())
 
@@ -903,18 +706,5 @@ class SmplModel(pl.LightningModule):
 
         return metadata
 
-    def export(self, filepath: str, **kwargs):
-        dirpath = os.path.dirname(filepath)
-        if not os.path.exists(dirpath):
-            try:
-                os.makedirs(dirpath)
-            except OSError as exc:  # Guard against race condition
-                if exc.errno != errno.EEXIST:
-                    raise
-
-        dummy_input = self.get_dummy_input()
-        dynamic_axes = self.get_dynamic_axes()
-        metadata = self.get_metadata()
-        metadata_json = {"json": json.dumps(metadata)}
-        export_named_model_to_onnx(self, dummy_input, filepath, metadata=metadata_json, dynamic_axes=dynamic_axes, verbose=True, **kwargs)
-
+    def export(self, filepath, **kwargs):
+        super().export(filepath, opset_version=10, **kwargs)

@@ -542,10 +542,6 @@ class SmplModel(pl.LightningModule):
             "root_joint_position": joint_positions[:, self.root_idx, :]
         }
 
-    def on_train_start(self) -> None:
-        super().on_train_start()
-        self.log_ng_metadata()
-
     def on_train_epoch_start(self) -> None:
         try:
             dataset = self.trainer.train_dataloader.dataset

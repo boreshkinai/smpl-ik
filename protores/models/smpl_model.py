@@ -81,8 +81,8 @@ class SmplModelOptions(BaseOptions):
 
 @ModelFactory.register(SmplModelOptions, schema_name="PosingSmpl")
 class SmplModel(pl.LightningModule):
-    def __init__(self, data_components: Any, opts: SmplModelOptions):
-        super().__init__(data_components=data_components, opts=opts)
+    def __init__(self, opts: SmplModelOptions):
+        super().__init__(opts=opts)
 
         self.smpl_male = SmplFK(models_path=opts.smpl_models_path, model_name=opts.smpl_male_name)
         self.smpl_female = SmplFK(models_path=opts.smpl_models_path, model_name=opts.smpl_female_name)

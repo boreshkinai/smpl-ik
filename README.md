@@ -29,10 +29,6 @@ go inside docker container
 ```
 docker exec -i -t smpl-ik_$USER  /bin/bash 
 ```
-launch training session
-```
-python run.py --config=protores/configs/experiments/smplik_h36m.yaml
-```
 
 ## Setup : Conda
 ```
@@ -46,6 +42,22 @@ To use notebooks (optional) :
 ```
 conda install jupyter
 ```
+
+## Training
+
+Train SMPL-IK model on H36M 
+```
+python run.py --config=protores/configs/experiments/smplik_h36m.yaml
+```
+Train SMPL-IK model on AMASS 
+```
+python run.py --config=protores/configs/experiments/smplik_amass.yaml
+```
+Train SMPL-SI model 
+```
+python run.py --config=protores/configs/experiments/smpl_si.yaml
+```
+
 
 ## Citation
 

@@ -36,9 +36,9 @@ python run.py --config=protores/configs/experiments/h36m/protores_h36m.yaml
 
 ## Setup : Conda
 ```
-conda create --name protores python=3.8
+conda create --name smplik python=3.8
 
-conda activate protores 
+conda activate smplik 
 
 pip install -r requirements.txt -f https://download.pytorch.org/whl/torch_stable.html
 ```
@@ -49,13 +49,16 @@ conda install jupyter
 
 ## Citation
 
-If you use ProtRes in any context, please cite the following paper:
+If you use SMPL-IK in any context, please cite the following paper:
 
 ```
-@inproceedings{oreshkin2022protores:,
-  title={ProtoRes: Proto-Residual Network for Pose Authoring via Learned Inverse Kinematics},
-  author={Boris N. Oreshkin and Florent Bocquelet and F{\'{e}}lix G. Harvey and Bay Raitt and Dominic Laflamme},
-  booktitle={International Conference on Learning Representations},
-  year={2022}
+@misc{voleti2022smplik,
+  doi = {10.48550/ARXIV.2208.08274},
+  url = {https://arxiv.org/abs/2208.08274},
+  author = {Voleti, Vikram and Oreshkin, Boris N. and Bocquelet, Florent and Harvey, Félix G. and Ménard, Louis-Simon and Pal, Christopher},
+  title = {SMPL-IK: Learned Morphology-Aware Inverse Kinematics for AI Driven Artistic Workflows},
+  publisher = {arXiv},
+  year = {2022}
 }
+
 ```

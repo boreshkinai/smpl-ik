@@ -1,6 +1,6 @@
 base_config: posing_smpl
 parameters:
-  model.logging.path: "./logs/h36m/protores_h36m"
+  model.logging.path: "./logs/protores_h36m"
   model.logging.name: "seed-${model.seed}_num_blocks_stage1-${model.backbone.num_blocks_stage1}"
   model.seed: 1
   model.min_effectors_count: 3

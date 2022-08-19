@@ -1,6 +1,6 @@
 base_config: posing_smpl
 parameters:
-  model.logging.path: "./logs/amass/protores_amass"
+  model.logging.path: "./logs/protores_amass"
   model.logging.name: "seed-${model.seed}_num_blocks_stage1-${model.backbone.num_blocks_stage1}"
   model.logging.export_period: 2
   model.seed: 0

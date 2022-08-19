@@ -1,0 +1,29 @@
+# @package _group_
+dataset:
+  training_size: 1
+  validation_size: 10000
+  test_size: 10000
+  batch_size: 128
+  num_workers: 0
+smpl_models_path: "./tools/smpl/models/"
+smpl_male_name: "basicModel_m_lbs_10_207_0_v1.0.0"
+smpl_female_name: "basicModel_f_lbs_10_207_0_v1.0.0"
+smpl_neutral_name: "basicModel_neutral_lbs_10_207_0_v1.0.0"
+predict_scale: True
+scale_min: 0.2
+scale_max: 2.0
+uniform_scale: True
+betas_range: 5.0
+betas_uniform: True
+betas_loss_scale: 0.0
+position_loss_scale: 0.0
+length_loss_scale: 1.0
+betas_l1_loss_scale: 1.0
+scale_loss_scale: 1.0
+input_bone_lengths: True
+kernel_std: 0.02
+num_samples: 20000
+logging:
+  export_period: 50
+trainer:
+  max_epochs: 1

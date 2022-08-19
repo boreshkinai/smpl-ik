@@ -3,6 +3,8 @@
 # ===========
 FROM pytorch/pytorch:1.5.1-cuda10.1-cudnn7-runtime as pytorch
 
+ENV PROJECT_PATH /workspace/smpl-ik
+
 RUN date
 RUN apt-get update && apt-get install -y locales && locale-gen en_US.UTF-8 && apt-get install -y git && apt-get -y install g++
 ENV LANG en_US.UTF-8
@@ -15,7 +17,8 @@ RUN python -m pip install pip -U
 # Install Jupyter
 RUN conda install -y jupyter
 # Install tini, which will keep the container up as a PID 1
-RUN apt-get install -y curl grep sed dpkg && \
+RUN apt-get update && apt-get install -y curl grep sed dpkg && \
+    TINI_VERSION=0.19.0 && \
     curl -L "https://github.com/krallin/tini/releases/download/v0.19.0/tini_0.19.0.deb" > tini.deb && \
     dpkg -i tini.deb && \
     rm tini.deb && \
@@ -27,6 +30,11 @@ RUN pip install -r ./requirements.txt -f https://download.pytorch.org/whl/torch_
 
 RUN pip install markupsafe==2.0.1
 
+RUN apt-get update && apt-get install -y wget unzip aria2
+
+COPY ./scripts/get_smpl_models.sh ./get_smpl_models.sh
+
+RUN bash get_smpl_models.sh
 
 # ============
 # SECOND STAGE
@@ -46,5 +54,5 @@ ENTRYPOINT [ "/usr/bin/tini", "--" ]
 
 CMD ["jupyter", "notebook", "--allow-root"]
 
-WORKDIR /workspace/smpl-ik
+WORKDIR ${PROJECT_PATH}
 

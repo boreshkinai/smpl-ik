@@ -47,15 +47,15 @@ conda install jupyter
 
 Train SMPL-IK model on H36M 
 ```
-python run.py --config=protores/configs/experiments/smplik_h36m.yaml
+python run.py --config=configs/experiments/smplik_h36m.yaml
 ```
 Train SMPL-IK model on AMASS 
 ```
-python run.py --config=protores/configs/experiments/smplik_amass.yaml
+python run.py --config=configs/experiments/smplik_amass.yaml
 ```
 Train SMPL-SI model 
 ```
-python run.py --config=protores/configs/experiments/smpl_si.yaml
+python run.py --config=configs/experiments/smpl_si.yaml
 ```
 
 

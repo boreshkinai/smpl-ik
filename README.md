@@ -31,7 +31,7 @@ docker exec -i -t smpl-ik_$USER  /bin/bash
 ```
 launch training session
 ```
-python run.py --config=protores/configs/experiments/h36m/protores_h36m.yaml
+python run.py --config=protores/configs/experiments/smplik_h36m.yaml
 ```
 
 ## Setup : Conda

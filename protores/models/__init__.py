@@ -1,1 +1,2 @@
 from .smpl_model import SmplModelOptions, SmplModel
+from .smpl_inversion_model import SmplInversionKernelModelOptions, SmplInversionKernelModel

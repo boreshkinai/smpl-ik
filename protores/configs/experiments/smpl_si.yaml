@@ -1,7 +1,7 @@
 base_config: smpl_inversion
 parameters:
   model.logging.path: "./logs/smpl_si"
-  model.logging.name: "seed-${model.seed}_smpl_si}"
+  model.logging.name: "seed-${model.seed}_smpl_si"
   model.logging.export_period: 2
   model.seed: 0
   

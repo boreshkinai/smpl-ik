@@ -96,7 +96,7 @@ def main(filepath: str, overrides: list = []):
     with open(filepath) as f:
         experiment_cfg = yaml.load(f, Loader=yaml.SafeLoader)
 
-    config_path = "protores/configs"
+    config_path = "configs"
     initialize(config_path=config_path)
 
     base_config = experiment_cfg["base_config"]

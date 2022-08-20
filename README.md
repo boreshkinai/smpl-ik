@@ -2,9 +2,11 @@
   <h1 align="center">SMPL-IK</h1>
 
   <p align="center">
-    Learned Morphology-Aware Inverse Kinematics for AI Driven Artistic Workflows 
-    https://arxiv.org/pdf/2208.08274.pdf
-    <br>
+    Learned Morphology-Aware Inverse Kinematics for AI Driven Artistic Workflows <br>
+  </p>
+  
+  <p align="center">
+    https://arxiv.org/pdf/2208.08274.pdf <br>
   </p>
 </p>
 

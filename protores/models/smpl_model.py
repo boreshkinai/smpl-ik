@@ -1,18 +1,13 @@
 # IDs of each effector type
-from dataclasses import dataclass, field
-from typing import Any, Union, List, Dict
-import os
-import json
-import errno
+from dataclasses import dataclass
+from typing import Any
 
 import torch
 import numpy as np
 from hydra.utils import instantiate
-import pytorch_lightning as pl
-from pytorch3d.transforms import quaternion_to_axis_angle, matrix_to_rotation_6d, euler_angles_to_matrix, \
+from pytorch3d.transforms import matrix_to_rotation_6d, euler_angles_to_matrix, \
     quaternion_to_matrix, rotation_6d_to_matrix, matrix_to_quaternion
 from pytorch_lightning.metrics import MeanSquaredError
-
 
 from protores.losses.angular_loss import angular_loss
 from protores.losses.weighted_geodesic import weighted_geodesic_loss
@@ -22,14 +17,7 @@ from protores.metrics.mpjpe import MPJPE
 from protores.metrics.pa_mpjpe import PA_MPJPE
 from protores.geometry.rotations import geodesic_loss_matrix3x3_matrix3x3
 from protores.geometry.vector import normalize_vector
-from protores.geometry.forward_kinematics import extract_translation_rotation
 from protores.utils.model_factory import ModelFactory
-from protores.utils.options import BaseOptions
-from protores.data.smpl_module import SmplDataModuleOptions
-from protores.utils.onnx_export import export_named_model_to_onnx
-
-from protores.smpl.smpl_fk import SmplFK
-from protores.smpl.smpl_info import SMPL_JOINT_NAMES
 
 TYPE_VALUES = {'position': 0, 'rotation': 1, 'lookat': 2}
 POSITION_EFFECTOR_ID = TYPE_VALUES["position"]

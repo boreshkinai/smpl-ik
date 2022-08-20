@@ -30,19 +30,6 @@ go inside docker container
 docker exec -i -t smpl-ik_$USER  /bin/bash 
 ```
 
-## Setup : Conda
-```
-conda create --name smplik python=3.8
-
-conda activate smplik 
-
-pip install -r requirements.txt -f https://download.pytorch.org/whl/torch_stable.html
-```
-To use notebooks (optional) :
-```
-conda install jupyter
-```
-
 ## Training
 
 Train SMPL-IK model on H36M 
@@ -56,6 +43,19 @@ python run.py --config=configs/experiments/smplik_amass.yaml
 Train SMPL-SI model 
 ```
 python run.py --config=configs/experiments/smpl_si.yaml
+```
+
+## Setup : Conda
+```
+conda create --name smplik python=3.8
+
+conda activate smplik 
+
+pip install -r requirements.txt -f https://download.pytorch.org/whl/torch_stable.html
+```
+To use notebooks (optional) :
+```
+conda install jupyter
 ```
 
 

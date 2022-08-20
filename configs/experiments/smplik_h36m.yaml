@@ -2,6 +2,7 @@ base_config: posing_smpl
 parameters:
   model.logging.path: "./logs/protores_h36m"
   model.logging.name: "seed-${model.seed}_num_blocks_stage1-${model.backbone.num_blocks_stage1}"
+  model.logging.export_period: 100
   model.seed: 1
   model.min_effectors_count: 3
   model.max_effectors_count: 16
@@ -11,6 +12,7 @@ parameters:
   model.dataset.translate: False
   model.dataset.augment_training: True
   model.dataset.augment_validation: False
+  model.trainer.max_epochs: 500
   model.backbone.num_blocks_stage1: 3
   model.backbone.num_blocks_stage2: "${model.backbone.num_blocks_stage1}"
   model.use_pos_loss: False

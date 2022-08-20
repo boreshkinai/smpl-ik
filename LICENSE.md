@@ -1,4 +1,4 @@
-**License for non-commercial academic research purposes only com.unity.deeppose copyright © 2018 Unity Technologies ApS**
+**License for non-commercial academic research purposes only smpl-ik copyright © 2022 Unity Technologies ApS**
 
 
 0. Definitions.

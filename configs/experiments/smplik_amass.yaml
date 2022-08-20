@@ -2,17 +2,17 @@ base_config: posing_smpl
 parameters:
   model.logging.path: "./logs/protores_amass"
   model.logging.name: "seed-${model.seed}_num_blocks_stage1-${model.backbone.num_blocks_stage1}"
-  model.logging.export_period: 2
+  model.logging.export_period: 20
   model.seed: 0
   model.min_effectors_count: 3
   model.max_effectors_count: 16
   model.trainer.overfit_batches: 0
-  model.dataset.name: "amass_cache_v1"
+  model.dataset.name: "amass_gender_augment_cache_v1"
   model.dataset.rotate: True
   model.dataset.translate: False
   model.dataset.augment_training: True
   model.dataset.augment_validation: False
-  model.dataset.num_workers: 8
+  model.trainer.max_epochs: 120
   model.backbone.num_blocks_stage1: 3
   model.backbone.num_blocks_stage2: "${model.backbone.num_blocks_stage1}"
   model.use_pos_loss: False

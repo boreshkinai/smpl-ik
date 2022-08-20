@@ -3,7 +3,6 @@
 
   <p align="center">
     Learned Morphology-Aware Inverse Kinematics for AI Driven Artistic Workflows 
-    
     https://arxiv.org/pdf/2208.08274.pdf
     <br>
   </p>

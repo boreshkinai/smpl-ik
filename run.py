@@ -11,18 +11,18 @@ from hydra.utils import instantiate
 from pytorch_lightning.callbacks import ModelCheckpoint
 from omegaconf import OmegaConf
 
-from protores.utils.onnx_export import ModelExport
-from protores.utils.tensorboard import TensorBoardLoggerWithMetrics
-from protores.utils.model_factory import ModelFactory
-from protores.utils.options import BaseOptions
-from protores.utils.versioning import get_git_diff
+from smplik.utils.onnx_export import ModelExport
+from smplik.utils.tensorboard import TensorBoardLoggerWithMetrics
+from smplik.utils.model_factory import ModelFactory
+from smplik.utils.options import BaseOptions
+from smplik.utils.versioning import get_git_diff
 
 from hydra.experimental import compose, initialize
 from sklearn.model_selection import ParameterGrid
-from protores.utils.checkpointing import set_latest_checkpoint
+from smplik.utils.checkpointing import set_latest_checkpoint
 
 # register models
-import protores.models
+import smplik.models
 
 
 def run(cfg: BaseOptions):

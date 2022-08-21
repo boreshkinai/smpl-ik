@@ -17,7 +17,7 @@ lookat_distance_std: 5.0
 max_effector_weight: 1000.0
 max_effector_noise_scale: 0.1
 backbone:
-  _target_: protores.modules.WeightedRelationNetSmpl.WeightedRelationNetSmpl
+  _target_: smplik.modules.WeightedRelationNetSmpl.WeightedRelationNetSmpl
   num_layers_enc: 3
   num_blocks_enc: 3
   layer_width_enc: 1024

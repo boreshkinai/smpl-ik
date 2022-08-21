@@ -51,7 +51,7 @@ class SMPLR(nn.Module):
 # 2. Make split.json
 # 3. Make csv
 
-# from protores.smpl.smpl_info import SMPLX_SHAPE_NAMES, SMPLX_POSE_NAMES, SMPLX_JOINT_NAMES
+# from smplik.smpl.smpl_info import SMPLX_SHAPE_NAMES, SMPLX_POSE_NAMES, SMPLX_JOINT_NAMES
 # https://github.com/vchoutas/smplx/blob/master/smplx/joint_names.py
 # SMPL
 SMPL_JOINTS_45 = {
@@ -113,7 +113,7 @@ SMPL_JOINT_NAMES = list(SMPL_JOINTS_45.keys())[:NUM_JOINTS]
 def make_dataset_settings_json(dset_path='/home/vikram.voleti/GitHubRepos/smpl-ik/datasets/Human3.6M_smpl/'):
     # 1. Make 'dataset_settings.json'
     # In /home/vikram.voleti/GitHubRepos/smpl-ik/datasets/master_v1_raycast_fps30
-    # Load protores' dataset_settings.json
+    # Load smplik' dataset_settings.json
     # with open('/home/vikram.voleti/GitHubRepos/smpl-ik/datasets/master_v1_raycast_fps30/dataset_settings.json', 'r') as f:
     #     a = json.load(f)
     a = {}
@@ -163,7 +163,7 @@ def make_dataset_settings_json(dset_path='/home/vikram.voleti/GitHubRepos/smpl-i
     a['features']['BonePositions']['fields'] = []
     a['features']['BonePositions']['types'] = []
     for key in SMPL_JOINT_NAMES:
-        a['features']['BonePositions']['fields'].append({'Label': key, 'Type': 3}) # DataTypes = {"Scalar": 1, "Vector2": 2, "Vector3": 3, "Quaternion": 4} (protores/data/augmentation/types.py)
+        a['features']['BonePositions']['fields'].append({'Label': key, 'Type': 3}) # DataTypes = {"Scalar": 1, "Vector2": 2, "Vector3": 3, "Quaternion": 4} (smplik/data/augmentation/types.py)
         a['features']['BonePositions']['types'].append('Vector3')
 
 
@@ -185,7 +185,7 @@ def make_dataset_settings_json(dset_path='/home/vikram.voleti/GitHubRepos/smpl-i
     a['features']['BoneRotations']['fields'] = []
     a['features']['BoneRotations']['types'] = []
     for key in SMPL_POSES_NAMES:
-        a['features']['BoneRotations']['fields'].append({'Label': key, 'Type': 4}) # DataTypes = {"Scalar": 1, "Vector2": 2, "Vector3": 3, "Quaternion": 4} (protores/data/augmentation/types.py)
+        a['features']['BoneRotations']['fields'].append({'Label': key, 'Type': 4}) # DataTypes = {"Scalar": 1, "Vector2": 2, "Vector3": 3, "Quaternion": 4} (smplik/data/augmentation/types.py)
         a['features']['BoneRotations']['types'].append('Quaternion')
 
 
@@ -260,7 +260,7 @@ def make_dataset_settings_json(dset_path='/home/vikram.voleti/GitHubRepos/smpl-i
 def make_split_json(dset_path='/home/vikram.voleti/GitHubRepos/smpl-ik/datasets/Human3.6M_smpl/'):
     # 2. Make split.json
     # In /home/vikram.voleti/GitHubRepos/smpl-ik/datasets/master_v1_raycast_fps30
-    # Load protores' split.json
+    # Load smplik' split.json
     # with open('/home/vikram.voleti/GitHubRepos/smpl-ik/datasets/master_v1_raycast_fps30/split.json', 'r') as f:
     #     a = json.load(f)
     # Check json

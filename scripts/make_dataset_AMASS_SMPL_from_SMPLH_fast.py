@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from smplx import SMPL
 
-# from protores.smpl.smpl_info import SMPLX_SHAPE_NAMES, SMPLX_POSE_NAMES, SMPLX_JOINT_NAMES
+# from smplik.smpl.smpl_info import SMPLX_SHAPE_NAMES, SMPLX_POSE_NAMES, SMPLX_JOINT_NAMES
 # https://github.com/vchoutas/smplx/blob/master/smplx/joint_names.py
 # SMPL
 SMPL_JOINTS_45 = {
@@ -117,7 +117,7 @@ class SMPLR(nn.Module):
 def make_dataset_settings_json(out_path='/home/vikram.voleti/GitHubRepos/deeppose/datasets/AMASS_SMPL_csv/'):
     # 1. Make 'dataset_settings.json'
     # In /home/vikram.voleti/GitHubRepos/deeppose/datasets/master_v1_raycast_fps30
-    # Load protores' dataset_settings.json
+    # Load smplik' dataset_settings.json
     # with open('/home/vikram.voleti/GitHubRepos/deeppose/datasets/master_v1_raycast_fps30/dataset_settings.json', 'r') as f:
     #     a = json.load(f)
     a = {}
@@ -260,7 +260,7 @@ def make_dataset_settings_json(out_path='/home/vikram.voleti/GitHubRepos/deeppos
 # def make_split_json(out_path='/home/vikram.voleti/GitHubRepos/deeppose/datasets/AMASS', name="HumanEva"):
     # 2. Make split.json
     # In /home/vikram.voleti/GitHubRepos/deeppose/datasets/master_v1_raycast_fps30
-    # Load protores' split.json
+    # Load smplik' split.json
     # with open('/home/vikram.voleti/GitHubRepos/deeppose/datasets/master_v1_raycast_fps30/split.json', 'r') as f:
     #     a = json.load(f)
     # Check json

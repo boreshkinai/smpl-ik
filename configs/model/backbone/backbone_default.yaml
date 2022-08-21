@@ -1,5 +1,5 @@
 # @package _group_
-_target_: protores.modules.WeightedProtoRes.WeightedProtoRes
+_target_: smplik.modules.WeightedProtoRes.WeightedProtoRes
 num_layers_enc: 3
 num_blocks_enc: 3
 layer_width_enc: 1024

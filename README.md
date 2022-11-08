@@ -8,6 +8,10 @@
   <p align="center">
     https://arxiv.org/pdf/2208.08274.pdf <br>
   </p>
+  <p align="center">
+    https://www.youtube.com/watch?v=FixF406owB4 <br>
+  </p>
+  
 </p>
 
 ![Alt Text](./fig/teaser.png)
